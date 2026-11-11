@@ -1,0 +1,32 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  poller:
+    build: ./services/poller
+    environment:
+      REDIS_URL: redis://redis:6379
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-20000}
+      VEHICLE_POSITIONS_URL: ${VEHICLE_POSITIONS_URL:-https://gtfsrealtime.ridetransit.org/GTFSRealTime/Vehicle/VehiclePositions.pb}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build: ./apps/web
+    environment:
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
